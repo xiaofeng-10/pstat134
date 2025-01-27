@@ -1,0 +1,380 @@
+---
+title: "Homework 4"
+author: "PSTAT 134/234"
+format:
+  pdf:
+    toc: true
+    toc-location: left
+    toc-depth: 4
+    embed-resources: true
+    theme: simplex
+editor: visual
+---
+
+## Homework 4
+
+**Note: If this is one of your two late homework submissions, please indicate below; also indicate whether it is your first or second late submission.**
+
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+
+This homework assignment has you practice working with some text data, doing some natural language processing. I strongly advise using Lab 7 for assistance.
+
+You also may need to use other functions. I encourage you to make use of our textbook(s) and use the Internet to help you solve these problems. You can also work together with your classmates. If you do work together, you should provide the names of those classmates below.
+
+[Names of Collaborators (if any):]{.underline}
+
+### Natural Language Processing
+
+We'll work with the data in `data/spotify-review-data.csv`. This CSV file contains a total of 51,473 rows, each representing a unique user review for the Spotify application. The dataset has two columns:
+
+-   Review: This column contains the text of user reviews, reflecting their experiences, opinions, and feedback on the Spotify app.
+
+-   Sentiment label: This column categorizes each review as either "POSITIVE" or "NEGATIVE" based on its sentiment.
+
+The data comes from this source at Kaggle: <https://www.kaggle.com/datasets/alexandrakim2201/spotify-dataset>
+
+#### Exercise 1
+
+Read the data into R (or Python, whichever you prefer).
+
+Take a look at the distribution of `label`. Are there relatively even numbers of negative and positive reviews in the data set?
+
+```{r, message = F}
+library(tidyverse)
+library(tidymodels)
+library(reshape2)
+library(wordcloud)
+library(ggraph)
+library(tidytext)
+library(httr)
+library(igraph)
+library(data.table)
+library(textdata)
+library(ggplot2)
+library(ggrepel)
+library(plotly)
+library(umap)
+library(word2vec)
+library(tm)
+library(kableExtra)
+library(LiblineaR)
+
+spotify <- read.csv("data/spotify-review-data.csv")
+ggplot(spotify, aes(x = label)) +
+  geom_bar() + 
+  labs(title = "Distribution of Labels in Spotify Data", 
+       x = "Label", 
+       y = "Count") +
+  theme_minimal()
+
+spotify$id <- seq.int(nrow(spotify))
+spotify_for_later <- spotify
+```
+
+The number of negative reviews and positive reviews is relatively even.
+
+#### Exercise 2
+
+Take a random sample of $10,000$ reviews, stratified by `label`. All further exercises will be working with this smaller sample of reviews.
+
+```{r}
+spotify_sample <- spotify %>%
+  group_by(label) %>%  
+  sample_frac(size = 10000 / nrow(spotify), replace = F) %>%
+  ungroup() 
+
+# prop.table(table(spotify_sample$label))
+```
+
+#### Exercise 3
+
+Tokenize the reviews into words.
+
+Remove stop words. (You can use any pre-made list of stop words of your choice.)
+
+Clean the reviews. Remove punctuation and convert the letters to lowercase.
+
+Verify that this process worked correctly.
+
+```{r, message = F}
+spotify_sample %>% 
+  unnest_tokens(word, Review) %>% 
+  head(10)
+
+stop_words %>% 
+  head(n = 10)
+
+# token and no stop words
+spotify_sample %>% 
+  filter(!is.na(Review)) %>% 
+  unnest_tokens(word, Review) %>% 
+  anti_join(stop_words) %>%
+  count(word, sort = T)
+head(spotify_sample, 10)
+
+# removing HTML tags, replacing with a space
+spotify_sample$Review <- str_replace_all(spotify_sample$Review, pattern = "<.*?>", " ")
+# removing "\n", replacing with a space
+spotify_sample$Review <- str_replace_all(spotify_sample$Review, pattern = "\n", " ")
+# removing "&amp;" and "&gt;"
+spotify_sample$Review <- str_replace_all(spotify_sample$Review, pattern = "&amp;", " ")
+spotify_sample$Review <- str_replace_all(spotify_sample$Review , pattern = "&gt;", " ")
+
+remove <- c('\n', 
+            '[[:punct:]]', 
+            'nbsp', 
+            '[[:digit:]]', 
+            '[[:symbol:]]',
+            '^br$',
+            'href',
+            'ilink') %>%
+  paste(collapse = '|')
+# removing any other weird characters,
+# any backslashes, adding space before capital
+# letters and removing extra whitespace,
+# replacing capital letters with lowercase letters
+spotify_sample$Review <- spotify_sample$Review %>% 
+  str_remove_all('\'') %>%
+  str_replace_all(remove, ' ') %>%
+  str_replace_all("([a-z])([A-Z])", "\\1 \\2") %>%
+  tolower() %>%
+  str_replace_all("â|ï|ð|ÿ|œ|ž|š|^", " ") %>% 
+  str_replace_all("\\s+", " ") %>% 
+  str_trim()
+
+# take a look at random row
+spotify_sample$Review[66:69]
+```
+
+#### Exercise 4
+
+Create a bar chart of the most commonly-occurring words (not including stop words).
+
+```{r, message = F}
+spotify_sample %>%
+  unnest_tokens(word, Review) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = T) %>%
+  filter(n > 250) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL, title = "Most Common Words in Spotify Reviews") +
+  theme_minimal()
+```
+
+Create bar charts of the most commonly-occurring words, broken down by `label`. What words are more common in positive reviews? What words are more common in negative reviews?
+
+```{r, message = F}
+word_counts <- spotify_sample %>% 
+  unnest_tokens(word, Review) %>% 
+  anti_join(stop_words) %>% 
+  count(label, word, sort = T) %>% 
+  group_by(label) %>% 
+  slice_max(n, n = 10) %>% 
+  ungroup()
+
+
+word_counts %>%
+  mutate(word = reorder_within(word, n, label)) %>% 
+  ggplot(aes(n, word, fill = label)) +
+  geom_col() +
+  facet_wrap(~label, scales = "free_y") +
+  scale_y_reordered() +
+  labs(x = "Counts", y = NULL, fill = "Label") +  
+  theme_minimal()
+```
+
+"app" is most common in negative reviews, "music" is the most common words in positive reviews.
+
+#### Exercise 5
+
+Create a word cloud of the most commonly-occurring words overall, broken down by "positive" or "negative" sentiment (using the Bing sentiment lexicon).
+
+```{r, message = F}
+spotify_sample %>% 
+  unnest_tokens(word, Review) %>% 
+  anti_join(stop_words) %>% 
+  ungroup() %>% 
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = T) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"), scale = c(4, 0.5), max.words = 70)
+```
+
+#### Exercise 6
+
+Calculate the tf-idf values for the words in the dataset.
+
+Find the 30 words with the largest tf-idf values.
+
+Find the 30 words with the smallest tf-idf values.
+
+```{r, message = F}
+tf_idf <- spotify_sample %>% 
+  unnest_tokens(word, Review) %>% 
+  anti_join(stop_words) %>% 
+  count(id, label, word) %>% 
+  bind_tf_idf(term = word,
+              document = id,
+              n = n)
+
+tf_idf %>% 
+  arrange(desc(tf_idf)) %>% 
+  head(n = 30) %>% 
+  kbl() %>%
+  add_header_above(c("Top 30 Words with the Largest TF-IDF Values" = 7)) %>% 
+  scroll_box(width = "400px", height = "500px")
+
+tf_idf %>% 
+  arrange(tf_idf) %>% 
+  head(n = 30) %>% 
+  kbl() %>%
+  add_header_above(c("Top 30 Words with the Smallest TF-IDF Values" = 7)) %>% 
+  scroll_box(width = "400px", height = "500px")
+```
+
+#### Exercise 7
+
+Find the 30 most commonly occuring bigrams.
+
+```{r}
+nrc_bigrams <- spotify_sample %>% 
+  unnest_tokens(bigram, Review, token = "ngrams", n = 2) %>% 
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!is.na(word1), !is.na(word2)) %>% 
+  unite(bigram, word1, word2, sep = " ")
+
+nrc_bigrams %>%
+  count(bigram, sort = T) %>% 
+  head(n = 30) %>% 
+  kbl() %>%
+  add_header_above(c("Top 30 Most Common Bigrams" = 2)) %>% 
+  scroll_box(width = "400px", height = "500px")
+```
+
+Create graphs visualizing the networks of bigrams, broken down by `label`. That is, make one graph of the network of bigrams for the positive reviews, and one graph of the network for the negative reviews.
+
+```{r, message = F}
+spotify_bigrams_sep <- spotify_sample %>% 
+  unnest_tokens(bigram, Review, token = "ngrams", n = 2) %>% 
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>% 
+  filter(!is.na(word1), !is.na(word2)) 
+
+a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+
+# Positive
+positive_bigrams <- spotify_bigrams_sep %>%
+  filter(label == "POSITIVE") %>%
+  count(word1, word2) %>%
+  filter(n > 50) %>%
+  graph_from_data_frame()
+
+positive_plot <- ggraph(positive_bigrams, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  ggtitle("Bigram Network for Positive Reviews") +
+  theme_void()
+positive_plot
+
+# Negative
+negative_bigrams <- spotify_bigrams_sep %>%
+  filter(label == "NEGATIVE") %>%
+  count(word1, word2) %>%
+  filter(n > 50) %>%
+  graph_from_data_frame()
+
+negative_plot <- ggraph(negative_bigrams, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  ggtitle("Bigram Network for Negative Reviews")+
+  theme_void()
+negative_plot
+```
+
+What patterns do you notice?
+
+The arrows really help us interpret the bigram network. We can see phrases like "music app," "nice app," and "love spotify" in positive reviews. In negative reviews, people are talking about issues such as "stop playing," "internet connection," and "random songs." The network for negative reviews shows a greater number of connected words compared to positive reviews, suggesting that users discuss a wider range of concerns when expressing dissatisfaction.
+
+#### Exercise 8
+
+Using the tokenized **words** and their corresponding tf-idf scores, fit a **linear support vector machine** to predict whether a given review is positive or negative.
+
+-   Split the data using stratified sampling, with 70% training and 30% testing;
+
+```{r}
+set.seed(123)
+spotify_df <- tf_idf %>% 
+  mutate(label = factor(label)) %>% 
+  select(-word)
+
+data_split <- initial_split(spotify_df, prop = 0.7, strata = label)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+cv_folds <- vfold_cv(train_data, v = 5, strata = label)
+```
+
+-   Drop any columns with zero variance;
+
+```{r}
+recipe <- recipe(label ~ ., data = train_data) %>%
+  step_zv(all_predictors())
+
+prep(recipe) %>% bake(train_data) %>% head()
+```
+
+-   Fit a linear support vector machine using default values for any hyperparameters;
+
+```{r, message = F}
+model <- svm_linear() %>% 
+  set_mode("classification") %>% 
+  set_engine("LiblineaR")
+
+svm_workflow <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(model)
+
+svm_tune <- fit_resamples(
+  svm_workflow,
+  cv_folds,
+  metrics = metric_set(accuracy))
+
+final_fit <- fit(svm_workflow, data = train_data)
+```
+
+-   Calculate the model **accuracy** on your testing data.
+
+```{r}
+test_results <- final_fit %>%
+  predict(new_data = test_data) %>%
+  bind_cols(test_data) %>%
+  metrics(truth = label, estimate = .pred_class) %>% 
+  filter(.metric == "accuracy")
+test_results
+```
+
+#### For 234 Students
+
+#### Exercise 9
+
+Using **either** Bag of Words or Word2Vec, extract a matrix of features. (Note: You can reduce the size of the dataset even further by working with a sample of $3,000$ reviews if need be.)
+
+#### Exercise 10
+
+Fit and tune a **logistic regression model, using lasso regularization**. Follow the same procedure as before, with a few changes:
+
+-   Stratified sampling, with a 70/30 split;
+
+-   Drop any columns with zero variance;
+
+-   Tune `penalty`, using the default values;
+
+-   Calculate your best model's **accuracy** on the testing data.
