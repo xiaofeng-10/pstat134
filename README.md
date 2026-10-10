@@ -1,27 +1,28 @@
-# pstat134
-## Final_Project
-### Natural Language Processing (NLP) and Sentiment Analysis of Disneyland Visitor Reviews
-- Analyzed 42,000+ Disneyland reviews using NLP techniques (text cleaning, tokenization) and sentiment analysis with the Bing lexicon, visualizing key terms with word clouds.
-- Created network plots for bigrams to show relationships between frequently co-occurring words.
-- Developed predictive models (SVM, KNN, Logistic Regression) to classify sentiments and predict ratings.
+# Data Analysis and Machine Learning Projects
 
-## homework_2
-### Data Analysis and Visualization Using Application Programming Interface (API)
-- Extracted and analyzed real-time weather data for 50 cities using the API, including temperature, humidity, and air quality index.
-- Created visualizations and conducted statistical analyses, such as linear regression and t-tests, to evaluate relationships and patterns in weather conditions.
+A collection of course projects covering data visualization, natural language processing, and machine learning in R and Python.
 
-## homework_3
-### Predicted passenger outcomes through Data Analysis, Cleaning, and Feature Engineering
-- Performed exploratory data analysis and imputation on the Spaceship Titanic dataset, addressing missing values using mode, median, and mean imputation techniques.
-- Visualized the Spaceship Titanic dataset to predict passenger outcomes.
-- Identifying patterns in passenger transportation to another dimension through feature engineering and data visualization.
+## Final Project: Disneyland Review Analysis
+Analyzed 42,000+ Disneyland reviews using text preprocessing, lexicon-based sentiment analysis, and bigram networks. Explored SVM, KNN, and Logistic Regression models for sentiment classification and rating prediction.
 
-## homework_4
-### Natural Language Processing (NLP) with Spotify Reviews
-- Analyzed 51,473 Spotify user reviews using NLP techniques such as tokenizing reviews, removing stop words, cleaning text, creating word frequency plots, and sentiment analysis using techniques like tf-idf and sentiment lexicons.
-- Examined common words in positive and negative reviews, and visualize results through bar charts and word clouds.
+[Code and report](Final_Project/)
 
-## homework_5
-### Python-Based Recommender Systems & Image Classification
-- Developed a content-based movie recommender system using TF-IDF and sigmoid kernel, providing personalized movie recommendations based on similarity scores.
-- Trained a convolutional neural network (CNN) for image classification on a dataset of animal images (cats, dogs, snakes), achieving high accuracy through iterative training and evaluation.
+## Homework 2: Weather Data Analysis
+Collected weather data for 50 cities through an API and explored relationships among temperature, humidity, and air quality using visualizations, linear regression, and t-tests.
+
+[Files](homework_2/)
+
+## Homework 3: Spaceship Titanic
+Explored passenger data, handled missing values, and engineered features to investigate patterns associated with transportation outcomes.
+
+[Files](homework_3/)
+
+## Homework 4: Spotify Review Analysis
+Analyzed 51,473 Spotify reviews using tokenization, word frequencies, TF-IDF, and lexicon-based sentiment analysis.
+
+[Files](homework_4/)
+
+## Homework 5: Recommendations and Image Classification
+Built a content-based movie recommender using TF-IDF and sigmoid similarity, and trained a CNN to classify images of cats, dogs, and snakes.
+
+[Files](homework_5/)
